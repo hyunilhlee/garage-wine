@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
 import { SYSTEM_PROMPT, CONTACT_TEMPLATE, EXAMPLE_POST } from '@/lib/prompts';
+import { searchWineFacts, verifyContent } from '@/lib/search';
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,23 +52,78 @@ export async function POST(request: NextRequest) {
     };
     userMessage += lengthGuide[length as keyof typeof lengthGuide] || '';
 
+    // 1단계: 와인 정보 팩트체크
+    console.log('Step 1: Fact-checking wine information...');
+    const { facts } = await searchWineFacts(userMessage);
+
+    // 팩트 기반 프롬프트 강화
+    const factBasedPrompt = `${SYSTEM_PROMPT}
+
+## 중요: 팩트 기반 작성 원칙
+- 아래 "검증된 정보"에 있는 내용만 사실로 작성하세요
+- 검증된 정보에 없는 내용은 추측하지 마세요
+- 확실하지 않은 수상내역, 평점은 포함하지 마세요
+- 일반적인 와인/품종/지역 지식은 사용 가능합니다
+
+=== 검증된 정보 ===
+${facts || '검증된 정보 없음 - 일반적인 와인 지식만 사용하세요'}
+===================
+
+${EXAMPLE_POST}`;
+
+    // 2단계: 팩트 기반 콘텐츠 생성
+    console.log('Step 2: Generating fact-based content...');
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: SYSTEM_PROMPT + '\n\n' + EXAMPLE_POST
+          content: factBasedPrompt
         },
         {
           role: 'user',
           content: userMessage
         }
       ],
-      temperature: 0.7,
+      temperature: 0.6, // 팩트 기반이므로 약간 낮춤
       max_tokens: 3000,
     });
 
-    const generatedContent = completion.choices[0]?.message?.content || '';
+    let generatedContent = completion.choices[0]?.message?.content || '';
+
+    // 3단계: 생성된 콘텐츠 검증
+    console.log('Step 3: Verifying generated content...');
+    const verification = await verifyContent(generatedContent, facts);
+
+    if (!verification.isValid && verification.issues.length > 0) {
+      console.log('Content verification found issues, regenerating...');
+      // 문제가 발견되면 한번 더 수정 요청
+      const correctionResponse = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: '당신은 팩트체커입니다. 블로그 글에서 과장되거나 확인되지 않은 내용을 수정해주세요.'
+          },
+          {
+            role: 'user',
+            content: `다음 블로그 글에서 발견된 문제를 수정해주세요.
+
+문제점:
+${verification.issues.join('\n')}
+
+원본 글:
+${generatedContent}
+
+수정된 전체 글을 작성해주세요. 구조와 형식은 유지하되, 문제가 된 부분만 수정하거나 삭제하세요.`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 3000,
+      });
+
+      generatedContent = correctionResponse.choices[0]?.message?.content || generatedContent;
+    }
 
     // 문의 방법 템플릿 추가
     const finalContent = generatedContent + CONTACT_TEMPLATE;
