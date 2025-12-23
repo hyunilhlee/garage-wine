@@ -80,15 +80,24 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Generation error:', error);
 
-    if (error instanceof Error && error.message?.includes('API key')) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (errorMessage.includes('API key') || errorMessage.includes('apiKey')) {
       return NextResponse.json(
-        { error: 'OpenAI API 키가 설정되지 않았습니다. .env.local 파일을 확인해주세요.' },
+        { error: `OpenAI API 키 오류: ${errorMessage}` },
+        { status: 500 }
+      );
+    }
+
+    if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+      return NextResponse.json(
+        { error: 'OpenAI API 키가 유효하지 않습니다. 키를 확인해주세요.' },
         { status: 500 }
       );
     }
 
     return NextResponse.json(
-      { error: '글 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' },
+      { error: `글 생성 중 오류: ${errorMessage}` },
       { status: 500 }
     );
   }
