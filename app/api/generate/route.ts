@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { openai } from '@/lib/openai';
-import { SYSTEM_PROMPT, CONTACT_TEMPLATE, EXAMPLE_POST } from '@/lib/prompts';
+import {
+  SYSTEM_PROMPT,
+  CONTACT_TEMPLATE,
+  LENGTH_CONFIGS,
+  EXAMPLE_POST_SHORT,
+  EXAMPLE_POST_MEDIUM
+} from '@/lib/prompts';
 import { searchWineFacts, verifyContent } from '@/lib/search';
 
 export async function POST(request: NextRequest) {
@@ -44,13 +50,22 @@ export async function POST(request: NextRequest) {
       userMessage += `\n\n강조해야 할 포인트: ${highlights.join(', ')}`;
     }
 
-    // 글 길이 옵션
-    const lengthGuide = {
-      short: '\n\n글은 간결하게 작성해주세요. 도입부와 핵심 내용만 포함합니다.',
-      normal: '',
-      detailed: '\n\n글은 상세하게 작성해주세요. 와이너리 소개도 포함하고, 각 섹션을 풍부하게 작성합니다.'
-    };
-    userMessage += lengthGuide[length as keyof typeof lengthGuide] || '';
+    // 글 길이 설정 (새 시스템)
+    const lengthKey = (length as keyof typeof LENGTH_CONFIGS) || 'normal';
+    const lengthConfig = LENGTH_CONFIGS[lengthKey] || LENGTH_CONFIGS.normal;
+
+    // 길이별 예시 선택
+    const examplePost = lengthKey === 'short' ? EXAMPLE_POST_SHORT : EXAMPLE_POST_MEDIUM;
+
+    // 길이별 max_tokens 설정
+    const maxTokens = {
+      short: 2500,
+      normal: 4000,
+      detailed: 6000
+    }[lengthKey] || 4000;
+
+    // 길이 가이드 추가
+    userMessage += `\n\n${lengthConfig.instruction}`;
 
     // 1단계: 와인 정보 팩트체크
     console.log('Step 1: Fact-checking wine information...');
@@ -69,10 +84,11 @@ export async function POST(request: NextRequest) {
 ${facts || '검증된 정보 없음 - 일반적인 와인 지식만 사용하세요'}
 ===================
 
-${EXAMPLE_POST}`;
+## 참고 예시 (${lengthConfig.label} 버전)
+${examplePost}`;
 
     // 2단계: 팩트 기반 콘텐츠 생성
-    console.log('Step 2: Generating fact-based content...');
+    console.log(`Step 2: Generating fact-based content (${lengthConfig.label}, ${maxTokens} tokens)...`);
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -85,8 +101,8 @@ ${EXAMPLE_POST}`;
           content: userMessage
         }
       ],
-      temperature: 0.6, // 팩트 기반이므로 약간 낮춤
-      max_tokens: 3000,
+      temperature: 0.5, // 일관성 향상
+      max_tokens: maxTokens,
     });
 
     let generatedContent = completion.choices[0]?.message?.content || '';
@@ -119,7 +135,7 @@ ${generatedContent}
           }
         ],
         temperature: 0.3,
-        max_tokens: 3000,
+        max_tokens: maxTokens,
       });
 
       generatedContent = correctionResponse.choices[0]?.message?.content || generatedContent;
