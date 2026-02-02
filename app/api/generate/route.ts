@@ -4,8 +4,7 @@ import {
   SYSTEM_PROMPT,
   CONTACT_TEMPLATE,
   LENGTH_CONFIGS,
-  EXAMPLE_POST_SHORT,
-  EXAMPLE_POST_MEDIUM
+  EXAMPLE_POST
 } from '@/lib/prompts';
 import { searchWineFacts, verifyContent } from '@/lib/search';
 
@@ -45,9 +44,6 @@ export async function POST(request: NextRequest) {
     const lengthKey = (length as keyof typeof LENGTH_CONFIGS) || 'normal';
     const lengthConfig = LENGTH_CONFIGS[lengthKey] || LENGTH_CONFIGS.normal;
 
-    // 길이별 예시 선택
-    const examplePost = lengthKey === 'short' ? EXAMPLE_POST_SHORT : EXAMPLE_POST_MEDIUM;
-
     // 길이별 max_tokens 설정
     const maxTokens = {
       short: 2500,
@@ -80,7 +76,7 @@ ${facts || '검증된 정보 없음 - 일반적인 와인 지식만 사용하세
 ===================
 
 ## 참고 예시 (${lengthConfig.label} 버전)
-${examplePost}`;
+${EXAMPLE_POST}`;
 
     // 2단계: 팩트 기반 콘텐츠 생성
     console.log(`Step 2: Generating fact-based content (${lengthConfig.label}, model: ${selectedModelId})...`);

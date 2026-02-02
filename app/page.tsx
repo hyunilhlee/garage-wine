@@ -65,37 +65,16 @@ export default function Home() {
   const [showSummary, setShowSummary] = useState(false);
 
   const highlightOptions = [
-    // 가격 관련
-    { value: '가성비', label: '가성비', category: '가격' },
-    { value: '프리미엄가치', label: '프리미엄 가치', category: '가격' },
-    { value: '가격대비품질', label: '가격 대비 품질', category: '가격' },
-
-    // 희소성 관련
-    { value: '한정생산', label: '한정 생산', category: '희소성' },
-    { value: '빈티지희귀성', label: '빈티지 희귀성', category: '희소성' },
-    { value: '수입물량제한', label: '수입 물량 제한', category: '희소성' },
-
-    // 평가 관련
-    { value: '평점수상', label: '평점/수상', category: '평가' },
-    { value: '평론가호평', label: '평론가 호평', category: '평가' },
-    { value: '국제대회수상', label: '국제 대회 수상', category: '평가' },
-
-    // 스토리 관련
-    { value: '와이너리역사', label: '와이너리 역사', category: '스토리' },
-    { value: '생산자철학', label: '생산자 철학', category: '스토리' },
-    { value: '테루아특별함', label: '테루아 특별함', category: '스토리' },
-    { value: '가족경영', label: '가족 경영 전통', category: '스토리' },
-
-    // 품질 관련
-    { value: '숙성잠재력', label: '장기 숙성 잠재력', category: '품질' },
-    { value: '유기농', label: '유기농/바이오다이나믹', category: '품질' },
-    { value: '복합미', label: '복합적인 풍미', category: '품질' },
-
-    // 음용/경험 관련
-    { value: '특별한날', label: '특별한 날 추천', category: '음용/경험' },
-    { value: '선물추천', label: '선물용 추천', category: '음용/경험' },
-    { value: '페어링다양성', label: '다양한 페어링', category: '음용/경험' },
-    { value: '즉시음용', label: '지금 마시기 좋음', category: '음용/경험' },
+    { value: '가성비', label: '가성비 강조', description: '같은 가격대 다른 와인 대비 우수한 품질' },
+    { value: '프리미엄', label: '프리미엄 가치', description: '고급 와인, 특별한 날 추천' },
+    { value: '희소성', label: '희소성/한정판', description: '한정 생산, 수입 물량 제한' },
+    { value: '고평점', label: '평론가 고평점', description: '90점 이상, 주요 평론가 극찬' },
+    { value: '빈티지', label: '빈티지 특별함', description: 'Great Vintage, 역사적 빈티지' },
+    { value: '올드바인', label: '올드바인', description: '50년 이상 수령 포도나무' },
+    { value: '바이오다이나믹', label: '유기농/바이오다이나믹', description: '친환경 재배 방식' },
+    { value: '숙성잠재력', label: '장기 숙성 잠재력', description: '10년 이상 보관 가능, 발전 가능성' },
+    { value: '와이너리스토리', label: '와이너리 스토리', description: '역사, 철학, 가족 경영 등' },
+    { value: '테루아', label: '테루아 독특함', description: 'Grand Cru, 특별한 토양/기후' },
   ];
 
   const toggleHighlight = (value: string) => {
@@ -596,30 +575,29 @@ export default function Home() {
           {/* 강조점 */}
           <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-3">강조점 (복수 선택 가능)</label>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {['가격', '희소성', '평가', '스토리', '품질', '음용/경험'].map((category) => (
-                <div key={category} className="border border-gray-200 rounded-lg p-3">
-                  <h4 className="text-xs font-semibold text-gray-600 mb-2">{category}</h4>
-                  <div className="flex flex-col gap-1">
-                    {highlightOptions
-                      .filter(opt => opt.category === category)
-                      .map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => toggleHighlight(option.value)}
-                          className={`px-3 py-1.5 rounded text-sm border transition-colors text-left ${
-                            highlights.includes(option.value)
-                              ? 'bg-purple-100 text-purple-700 border-purple-400'
-                              : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
-                          }`}
-                        >
-                          {highlights.includes(option.value) && '✓ '}
-                          {option.label}
-                        </button>
-                      ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {highlightOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => toggleHighlight(option.value)}
+                  className={`px-4 py-3 rounded-lg border transition-colors text-left ${
+                    highlights.includes(option.value)
+                      ? 'bg-purple-100 text-purple-700 border-purple-400'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-purple-400'
+                  }`}
+                  title={option.description}
+                >
+                  <div className="flex items-start">
+                    <span className="mr-2 text-sm">
+                      {highlights.includes(option.value) ? '✓' : '○'}
+                    </span>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{option.label}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{option.description}</div>
+                    </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
