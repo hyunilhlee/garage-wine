@@ -6,7 +6,7 @@ interface WineFactsResult {
 }
 
 // 와인 정보를 검색하고 팩트체크하는 함수
-export async function searchWineFacts(wineInfo: string): Promise<WineFactsResult> {
+export async function searchWineFacts(wineInfo: string, model: string = 'gpt-5-mini'): Promise<WineFactsResult> {
   // GPT를 사용하여 와인에 대한 검증된 정보만 추출
   // 모델의 학습 데이터 기반으로 확실한 정보만 제공하도록 요청
 
@@ -33,7 +33,7 @@ ${wineInfo}`;
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: model,
       messages: [
         {
           role: 'system',
@@ -44,7 +44,7 @@ ${wineInfo}`;
           content: factCheckPrompt
         }
       ],
-      temperature: 0.3, // 낮은 temperature로 더 일관된 사실적 응답
+      temperature: 0.5, // GPT-5 시리즈는 0.5-0.7 권장
       max_tokens: 1500,
     });
 
@@ -52,7 +52,7 @@ ${wineInfo}`;
 
     return {
       facts,
-      sources: ['GPT-4o-mini 학습 데이터 기반 검증']
+      sources: [`${model} 학습 데이터 기반 검증`]
     };
   } catch (error) {
     console.error('Fact check error:', error);
@@ -64,7 +64,7 @@ ${wineInfo}`;
 }
 
 // 생성된 콘텐츠에서 허위 정보 검증
-export async function verifyContent(content: string, originalFacts: string): Promise<{
+export async function verifyContent(content: string, originalFacts: string, model: string = 'gpt-5-mini'): Promise<{
   isValid: boolean;
   issues: string[];
   correctedContent?: string;
@@ -83,7 +83,7 @@ ${content}
 
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: model,
       messages: [
         {
           role: 'system',
@@ -94,7 +94,7 @@ ${content}
           content: verifyPrompt
         }
       ],
-      temperature: 0.2,
+      temperature: 0.5,
       max_tokens: 1000,
     });
 

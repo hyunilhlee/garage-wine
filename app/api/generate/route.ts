@@ -9,20 +9,24 @@ import {
 } from '@/lib/prompts';
 import { searchWineFacts, verifyContent } from '@/lib/search';
 
+// 모델 ID 매핑 (실제 OpenAI API 모델명으로 변환)
+const MODEL_ID_MAP: { [key: string]: string } = {
+  'gpt-5.2': 'gpt-5.2',
+  'gpt-5-mini': 'gpt-5-mini',
+  'gpt-5-nano': 'gpt-5-nano',
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
       prompt,
-      wineName,
-      region,
-      vintage,
-      variety,
       highlights,
-      length = 'normal'
+      length = 'normal',
+      model = 'gpt-5-mini' // 기본값: gpt-5-mini
     } = body;
 
-    if (!prompt && !wineName) {
+    if (!prompt || !prompt.trim()) {
       return NextResponse.json(
         { error: '와인 정보를 입력해주세요.' },
         { status: 400 }
@@ -30,24 +34,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 사용자 입력 구성
-    let userMessage = '';
-
-    if (prompt) {
-      userMessage = `다음 정보를 바탕으로 와인 홍보 블로그 글을 작성해주세요:\n\n${prompt}`;
-    }
-
-    // 추가 상세 정보가 있으면 포함
-    if (wineName || region || vintage || variety) {
-      userMessage += '\n\n추가 정보:';
-      if (wineName) userMessage += `\n- 와인명: ${wineName}`;
-      if (region) userMessage += `\n- 생산지역: ${region}`;
-      if (vintage) userMessage += `\n- 빈티지: ${vintage}`;
-      if (variety) userMessage += `\n- 품종: ${variety}`;
-    }
+    let userMessage = `다음 정보를 바탕으로 와인 홍보 블로그 글을 작성해주세요:\n\n${prompt}`;
 
     // 강조점 옵션
     if (highlights && highlights.length > 0) {
-      userMessage += `\n\n강조해야 할 포인트: ${highlights.join(', ')}`;
+      userMessage += `\n\n특별히 강조해야 할 포인트: ${highlights.join(', ')}`;
     }
 
     // 글 길이 설정 (새 시스템)
@@ -67,9 +58,13 @@ export async function POST(request: NextRequest) {
     // 길이 가이드 추가
     userMessage += `\n\n${lengthConfig.instruction}`;
 
+    // 선택된 모델 ID 가져오기
+    const selectedModelId = MODEL_ID_MAP[model] || 'gpt-5-mini';
+    console.log(`Using model: ${selectedModelId}`);
+
     // 1단계: 와인 정보 팩트체크
     console.log('Step 1: Fact-checking wine information...');
-    const { facts } = await searchWineFacts(userMessage);
+    const { facts } = await searchWineFacts(userMessage, selectedModelId);
 
     // 팩트 기반 프롬프트 강화
     const factBasedPrompt = `${SYSTEM_PROMPT}
@@ -88,9 +83,9 @@ ${facts || '검증된 정보 없음 - 일반적인 와인 지식만 사용하세
 ${examplePost}`;
 
     // 2단계: 팩트 기반 콘텐츠 생성
-    console.log(`Step 2: Generating fact-based content (${lengthConfig.label}, ${maxTokens} tokens)...`);
+    console.log(`Step 2: Generating fact-based content (${lengthConfig.label}, ${maxTokens} tokens, model: ${selectedModelId})...`);
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: selectedModelId,
       messages: [
         {
           role: 'system',
@@ -101,7 +96,7 @@ ${examplePost}`;
           content: userMessage
         }
       ],
-      temperature: 0.5, // 일관성 향상
+      temperature: 0.7, // GPT-5 시리즈는 0.7 권장
       max_tokens: maxTokens,
     });
 
@@ -109,13 +104,13 @@ ${examplePost}`;
 
     // 3단계: 생성된 콘텐츠 검증
     console.log('Step 3: Verifying generated content...');
-    const verification = await verifyContent(generatedContent, facts);
+    const verification = await verifyContent(generatedContent, facts, selectedModelId);
 
     if (!verification.isValid && verification.issues.length > 0) {
       console.log('Content verification found issues, regenerating...');
       // 문제가 발견되면 한번 더 수정 요청
       const correctionResponse = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: selectedModelId,
         messages: [
           {
             role: 'system',
@@ -134,7 +129,7 @@ ${generatedContent}
 수정된 전체 글을 작성해주세요. 구조와 형식은 유지하되, 문제가 된 부분만 수정하거나 삭제하세요.`
           }
         ],
-        temperature: 0.3,
+        temperature: 0.5,
         max_tokens: maxTokens,
       });
 
