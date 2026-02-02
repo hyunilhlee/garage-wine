@@ -201,6 +201,11 @@ export default function Home() {
       return;
     }
 
+    // 브라우저 알림 권한 요청 (처음에만)
+    if ('Notification' in window && Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+
     setIsLoading(true);
     setError('');
     setResult('');
@@ -283,11 +288,6 @@ export default function Home() {
           body: '와인 블로그 글 생성이 완료되었습니다!',
           icon: '/favicon.ico'
         });
-      }
-
-      // 브라우저 알림 권한 요청 (처음에만)
-      if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
       }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -881,7 +881,7 @@ export default function Home() {
                 {/* 요약 */}
                 <div className="p-5 bg-blue-50 border-2 border-blue-200 rounded-lg relative">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-bold text-blue-900 text-lg">📝 요약 (400자)</h4>
+                    <h4 className="font-bold text-blue-900 text-lg">📝 요약</h4>
                     <button
                       onClick={async () => {
                         await navigator.clipboard.writeText(summary);
