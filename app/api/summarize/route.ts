@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
 
     console.log('Generating summary and hook message...');
 
-    // GPT-4o-mini로 요약 및 후킹 메시지 생성
-    const completion = await openai.chat.completions.create({
+    // GPT-4o-mini로 요약 및 후킹 메시지 생성 (Responses API 사용)
+    const completion = await openai.responses.create({
       model: 'gpt-4o-mini',
-      messages: [
+      input: [
         {
           role: 'system',
           content: `당신은 와인 마케팅 전문가입니다.
@@ -54,11 +54,9 @@ export async function POST(request: NextRequest) {
 ${content}`
         }
       ],
-      temperature: 0.7,
-      max_tokens: 800,
     });
 
-    const result = completion.choices[0]?.message?.content || '';
+    const result = completion.output_text || '';
 
     // 요약과 후킹 메시지 파싱
     const summaryMatch = result.match(/===\s*요약\s*===\s*([\s\S]*?)(?====|$)/);
@@ -69,8 +67,7 @@ ${content}`
 
     return NextResponse.json({
       summary,
-      hookMessage,
-      usage: completion.usage
+      hookMessage
     });
 
   } catch (error: unknown) {

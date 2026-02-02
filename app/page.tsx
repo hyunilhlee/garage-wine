@@ -20,7 +20,7 @@ interface SkippedState {
 
 // 모델별 가격 정보 (per 1M tokens)
 const MODEL_PRICING = {
-  'gpt-5.2': { input: 1.25, output: 10.0, label: 'GPT-5.2 (고품질)', description: '코딩 및 복잡한 작업에 최적화' },
+  'gpt-5.2': { input: 1.25, output: 10.0, label: 'GPT-5.2 (고품질)', description: '최신 GPT-5 모델' },
   'gpt-5-mini': { input: 0.25, output: 2.0, label: 'GPT-5 mini (추천)', description: '빠르고 비용 효율적' },
   'gpt-5-nano': { input: 0.05, output: 0.4, label: 'GPT-5 nano (초저가)', description: '가장 빠르고 저렴한 옵션' },
 } as const;
@@ -56,23 +56,34 @@ export default function Home() {
     // 가격 관련
     { value: '가성비', label: '가성비', category: '가격' },
     { value: '프리미엄가치', label: '프리미엄 가치', category: '가격' },
+    { value: '가격대비품질', label: '가격 대비 품질', category: '가격' },
 
     // 희소성 관련
     { value: '한정생산', label: '한정 생산', category: '희소성' },
     { value: '빈티지희귀성', label: '빈티지 희귀성', category: '희소성' },
+    { value: '수입물량제한', label: '수입 물량 제한', category: '희소성' },
 
     // 평가 관련
     { value: '평점수상', label: '평점/수상', category: '평가' },
     { value: '평론가호평', label: '평론가 호평', category: '평가' },
+    { value: '국제대회수상', label: '국제 대회 수상', category: '평가' },
 
     // 스토리 관련
     { value: '와이너리역사', label: '와이너리 역사', category: '스토리' },
     { value: '생산자철학', label: '생산자 철학', category: '스토리' },
     { value: '테루아특별함', label: '테루아 특별함', category: '스토리' },
+    { value: '가족경영', label: '가족 경영 전통', category: '스토리' },
 
     // 품질 관련
     { value: '숙성잠재력', label: '장기 숙성 잠재력', category: '품질' },
     { value: '유기농', label: '유기농/바이오다이나믹', category: '품질' },
+    { value: '복합미', label: '복합적인 풍미', category: '품질' },
+
+    // 음용/경험 관련
+    { value: '특별한날', label: '특별한 날 추천', category: '음용/경험' },
+    { value: '선물추천', label: '선물용 추천', category: '음용/경험' },
+    { value: '페어링다양성', label: '다양한 페어링', category: '음용/경험' },
+    { value: '즉시음용', label: '지금 마시기 좋음', category: '음용/경험' },
   ];
 
   const toggleHighlight = (value: string) => {
@@ -479,7 +490,7 @@ export default function Home() {
           <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-3">강조점 (복수 선택 가능)</label>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {['가격', '희소성', '평가', '스토리', '품질'].map((category) => (
+              {['가격', '희소성', '평가', '스토리', '품질', '음용/경험'].map((category) => (
                 <div key={category} className="border border-gray-200 rounded-lg p-3">
                   <h4 className="text-xs font-semibold text-gray-600 mb-2">{category}</h4>
                   <div className="flex flex-col gap-1">

@@ -83,10 +83,10 @@ ${facts || '검증된 정보 없음 - 일반적인 와인 지식만 사용하세
 ${examplePost}`;
 
     // 2단계: 팩트 기반 콘텐츠 생성
-    console.log(`Step 2: Generating fact-based content (${lengthConfig.label}, ${maxTokens} tokens, model: ${selectedModelId})...`);
-    const completion = await openai.chat.completions.create({
+    console.log(`Step 2: Generating fact-based content (${lengthConfig.label}, model: ${selectedModelId})...`);
+    const completion = await openai.responses.create({
       model: selectedModelId,
-      messages: [
+      input: [
         {
           role: 'system',
           content: factBasedPrompt
@@ -96,11 +96,9 @@ ${examplePost}`;
           content: userMessage
         }
       ],
-      temperature: 0.7, // GPT-5 시리즈는 0.7 권장
-      max_tokens: maxTokens,
     });
 
-    let generatedContent = completion.choices[0]?.message?.content || '';
+    let generatedContent = completion.output_text || '';
 
     // 3단계: 생성된 콘텐츠 검증
     console.log('Step 3: Verifying generated content...');
@@ -109,9 +107,9 @@ ${examplePost}`;
     if (!verification.isValid && verification.issues.length > 0) {
       console.log('Content verification found issues, regenerating...');
       // 문제가 발견되면 한번 더 수정 요청
-      const correctionResponse = await openai.chat.completions.create({
+      const correctionResponse = await openai.responses.create({
         model: selectedModelId,
-        messages: [
+        input: [
           {
             role: 'system',
             content: '당신은 팩트체커입니다. 블로그 글에서 과장되거나 확인되지 않은 내용을 수정해주세요.'
@@ -129,11 +127,9 @@ ${generatedContent}
 수정된 전체 글을 작성해주세요. 구조와 형식은 유지하되, 문제가 된 부분만 수정하거나 삭제하세요.`
           }
         ],
-        temperature: 0.5,
-        max_tokens: maxTokens,
       });
 
-      generatedContent = correctionResponse.choices[0]?.message?.content || generatedContent;
+      generatedContent = correctionResponse.output_text || generatedContent;
     }
 
     // 문의 방법 템플릿 추가
@@ -141,7 +137,11 @@ ${generatedContent}
 
     return NextResponse.json({
       content: finalContent,
-      usage: completion.usage
+      usage: {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0
+      }
     });
 
   } catch (error: unknown) {

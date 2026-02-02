@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
 
     console.log('Modifying content with gpt-4o-mini...');
 
-    // gpt-4o-mini로 간단하게 수정
-    const completion = await openai.chat.completions.create({
+    // gpt-4o-mini로 간단하게 수정 (Responses API 사용)
+    const completion = await openai.responses.create({
       model: 'gpt-4o-mini',
-      messages: [
+      input: [
         {
           role: 'system',
           content: `당신은 와인 블로그 글 편집 전문가입니다.
@@ -51,15 +51,12 @@ ${modifyRequest}
 === 수정된 전체 글을 작성해주세요 ===`
         }
       ],
-      temperature: 0.5,
-      max_tokens: 4000,
     });
 
-    const modifiedContent = completion.choices[0]?.message?.content || '';
+    const modifiedContent = completion.output_text || '';
 
     return NextResponse.json({
-      content: modifiedContent,
-      usage: completion.usage
+      content: modifiedContent
     });
 
   } catch (error: unknown) {

@@ -32,9 +32,9 @@ export async function searchWineFacts(wineInfo: string, model: string = 'gpt-5-m
 ${wineInfo}`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await openai.responses.create({
       model: model,
-      messages: [
+      input: [
         {
           role: 'system',
           content: '당신은 정확성을 최우선으로 하는 와인 전문가입니다. 확실한 사실만 제공하며, 모르는 것은 모른다고 솔직하게 말합니다.'
@@ -44,11 +44,9 @@ ${wineInfo}`;
           content: factCheckPrompt
         }
       ],
-      temperature: 0.5, // GPT-5 시리즈는 0.5-0.7 권장
-      max_tokens: 1500,
     });
 
-    const facts = response.choices[0]?.message?.content || '';
+    const facts = response.output_text || '';
 
     return {
       facts,
@@ -82,9 +80,9 @@ ${content}
 2. 수정이 필요한 부분과 수정 제안`;
 
   try {
-    const response = await openai.chat.completions.create({
+    const response = await openai.responses.create({
       model: model,
-      messages: [
+      input: [
         {
           role: 'system',
           content: '당신은 팩트체커입니다. 과장이나 허위 정보를 찾아내는 것이 임무입니다.'
@@ -94,11 +92,9 @@ ${content}
           content: verifyPrompt
         }
       ],
-      temperature: 0.5,
-      max_tokens: 1000,
     });
 
-    const verification = response.choices[0]?.message?.content || '';
+    const verification = response.output_text || '';
 
     // 간단한 검증 - "문제점: 없음" 또는 유사 표현이 있으면 valid
     const isValid = verification.includes('없음') ||
