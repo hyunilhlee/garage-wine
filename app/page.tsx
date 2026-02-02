@@ -473,19 +473,17 @@ export default function Home() {
       </header>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg mb-6">
-        {/* 헤더 - 최소화 버튼 */}
-        {isFormCollapsed && (
-          <div className="p-4 border-b flex items-center justify-between">
-            <h3 className="font-semibold text-gray-700">입력 정보</h3>
-            <button
-              type="button"
-              onClick={() => setIsFormCollapsed(false)}
-              className="text-purple-600 hover:text-purple-800 text-sm font-medium"
-            >
-              펼치기 ▼
-            </button>
-          </div>
-        )}
+        {/* 헤더 - 최소화/펼치기 토글 버튼 */}
+        <div className="p-4 border-b flex items-center justify-between">
+          <h3 className="font-semibold text-gray-700">입력 정보</h3>
+          <button
+            type="button"
+            onClick={() => setIsFormCollapsed(!isFormCollapsed)}
+            className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+          >
+            {isFormCollapsed ? '펼치기 ▼' : '최소화 ▲'}
+          </button>
+        </div>
 
         {/* 폼 내용 - 최소화되면 숨김 */}
         <div className={isFormCollapsed ? 'hidden' : 'p-6'}>
