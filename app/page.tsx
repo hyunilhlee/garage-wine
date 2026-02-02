@@ -25,6 +25,9 @@ const MODEL_PRICING = {
   'gpt-5-nano': { input: 0.05, output: 0.4, label: 'GPT-5 nano (초저가)', description: '가장 빠르고 저렴한 옵션' },
 } as const;
 
+// 환율 (1 USD = 1,300 KRW)
+const USD_TO_KRW = 1300;
+
 export default function Home() {
   const [prompt, setPrompt] = useState('');
   const [length, setLength] = useState<LengthOption>('detailed');
@@ -40,6 +43,15 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState<Step>('input');
   const [estimatedCost, setEstimatedCost] = useState<number>(0);
   const [actualCost, setActualCost] = useState<number>(0);
+
+  // 진행 상황 추적
+  const [generationProgress, setGenerationProgress] = useState<{
+    step: number;
+    totalSteps: number;
+    stepName: string;
+    elapsedTime: number;
+  }>({ step: 0, totalSteps: 3, stepName: '', elapsedTime: 0 });
+  const [isFormCollapsed, setIsFormCollapsed] = useState(false);
 
   // 수정 기능 상태
   const [modifyRequest, setModifyRequest] = useState('');
@@ -192,8 +204,41 @@ export default function Home() {
     setSkippedImages({});
     setActualCost(0);
     setCurrentStep('writing');
+    setIsFormCollapsed(true); // 폼 최소화
+
+    // 진행 상황 초기화
+    setGenerationProgress({ step: 1, totalSteps: 3, stepName: '팩트 체크 중...', elapsedTime: 0 });
+
+    // 경과 시간 및 단계 타이머
+    const startTime = Date.now();
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+
+      // 경과 시간에 따라 단계 자동 업데이트 (예상 시간 기반)
+      let currentStep = 1;
+      let stepName = '팩트 체크 중...';
+
+      if (elapsed > 30 && elapsed <= 90) {
+        currentStep = 2;
+        stepName = '콘텐츠 생성 중...';
+      } else if (elapsed > 90) {
+        currentStep = 3;
+        stepName = '내용 검증 중...';
+      }
+
+      setGenerationProgress({
+        step: currentStep,
+        totalSteps: 3,
+        stepName,
+        elapsedTime: elapsed
+      });
+    }, 1000);
 
     try {
+      // 5분 타임아웃 설정
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5분
+
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,9 +246,12 @@ export default function Home() {
           prompt,
           highlights,
           length,
-          model, // 선택된 모델 전달
+          model,
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json();
 
@@ -223,13 +271,18 @@ export default function Home() {
         setActualCost(cost);
       }
 
-      // 이미지 기능이 활성화된 경우에만 이미지 단계로 전환
       setCurrentStep(ENABLE_IMAGE_FEATURE ? 'images' : 'input');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '오류가 발생했습니다.');
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('요청 시간이 초과되었습니다. 다시 시도해주세요.');
+      } else {
+        setError(err instanceof Error ? err.message : '오류가 발생했습니다.');
+      }
       setCurrentStep('input');
+      setIsFormCollapsed(false); // 폼 다시 표시
     } finally {
       setIsLoading(false);
+      clearInterval(timer);
     }
   };
 
@@ -402,7 +455,23 @@ export default function Home() {
         )}
       </header>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-6 mb-6">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg mb-6">
+        {/* 헤더 - 최소화 버튼 */}
+        {isFormCollapsed && (
+          <div className="p-4 border-b flex items-center justify-between">
+            <h3 className="font-semibold text-gray-700">입력 정보</h3>
+            <button
+              type="button"
+              onClick={() => setIsFormCollapsed(false)}
+              className="text-purple-600 hover:text-purple-800 text-sm font-medium"
+            >
+              펼치기 ▼
+            </button>
+          </div>
+        )}
+
+        {/* 폼 내용 - 최소화되면 숨김 */}
+        <div className={isFormCollapsed ? 'hidden' : 'p-6'}>
         {/* 자연어 입력 */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -446,12 +515,12 @@ export default function Home() {
                   <p className="text-xs text-gray-600 mb-2">{modelInfo.description}</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-sm font-medium text-gray-900">
-                      ~${cost.toFixed(4)}
+                      ~₩{(cost * USD_TO_KRW).toFixed(2)}
                     </span>
                     <span className="text-xs text-gray-500">/ 예상</span>
                   </div>
                   <div className="mt-1 text-xs text-gray-400">
-                    입력: ${modelInfo.input}/1M · 출력: ${modelInfo.output}/1M
+                    입력: ₩{(modelInfo.input * USD_TO_KRW / 1000).toFixed(1)}/1M · 출력: ₩{(modelInfo.output * USD_TO_KRW / 1000).toFixed(1)}/1M
                   </div>
                 </button>
               );
@@ -547,7 +616,58 @@ export default function Home() {
             '글 생성하기'
           )}
         </button>
+        </div> {/* 폼 내용 닫기 */}
       </form>
+
+      {/* 생성 진행 상황 표시 */}
+      {isLoading && (
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">글 생성 중...</h3>
+
+          {/* 진행 단계 */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-purple-700">
+                {generationProgress.stepName}
+              </span>
+              <span className="text-sm text-gray-600">
+                {generationProgress.step}/{generationProgress.totalSteps} 단계
+              </span>
+            </div>
+
+            {/* 프로그레스 바 */}
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+              <div
+                className="bg-purple-600 h-3 rounded-full transition-all duration-500 animate-pulse"
+                style={{ width: `${(generationProgress.step / generationProgress.totalSteps) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 경과 시간 및 예상 시간 */}
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>경과 시간: {generationProgress.elapsedTime}초</span>
+            </div>
+            <span className="text-gray-500">
+              예상 소요 시간: 60~180초
+            </span>
+          </div>
+
+          {/* 단계별 안내 */}
+          <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+            <p className="text-xs text-gray-700">
+              <strong>현재 진행 중:</strong>
+              {generationProgress.step === 1 && ' 와인 정보를 검색하고 팩트를 체크하고 있습니다...'}
+              {generationProgress.step === 2 && ' 팩트 기반으로 고품질 콘텐츠를 생성하고 있습니다...'}
+              {generationProgress.step === 3 && ' 생성된 내용을 검증하고 있습니다...'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 결과 표시 */}
       {result && (
@@ -559,8 +679,8 @@ export default function Home() {
               </h2>
               {actualCost > 0 && (
                 <p className="text-sm text-gray-600 mt-1">
-                  실제 비용: <span className="font-semibold text-purple-600">${actualCost.toFixed(4)}</span>
-                  {' '}(예상: ${estimatedCost.toFixed(4)})
+                  실제 비용: <span className="font-semibold text-purple-600">₩{(actualCost * USD_TO_KRW).toFixed(2)}</span>
+                  {' '}(예상: ₩{(estimatedCost * USD_TO_KRW).toFixed(2)})
                 </p>
               )}
             </div>
