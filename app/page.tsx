@@ -106,7 +106,7 @@ export default function Home() {
     );
   };
 
-  // 예상 비용 계산 (대략적인 토큰 수 추정)
+  // 예상 비용 및 시간 계산
   const calculateEstimatedCost = (selectedModel: ModelOption, selectedLength: LengthOption) => {
     const pricing = MODEL_PRICING[selectedModel];
 
@@ -122,6 +122,31 @@ export default function Home() {
     const outputCost = (estimate.output / 1_000_000) * pricing.output;
 
     return inputCost + outputCost;
+  };
+
+  // 예상 소요 시간 계산 (초 단위)
+  const calculateEstimatedTime = (selectedModel: ModelOption, selectedLength: LengthOption) => {
+    // 기본 시간 (팩트체크 30초 + 검증 20초)
+    const baseTime = 50;
+
+    // 모델별 생성 속도 (초당 토큰)
+    const modelSpeed = {
+      'gpt-5.2': 20,      // 느림, 고품질
+      'gpt-5-mini': 50,   // 중간
+      'gpt-5-nano': 80,   // 빠름
+    };
+
+    // 길이별 예상 출력 토큰
+    const outputTokens = {
+      short: 1500,
+      normal: 2500,
+      detailed: 4000,
+    };
+
+    const generationTime = outputTokens[selectedLength] / modelSpeed[selectedModel];
+    const totalTime = baseTime + generationTime;
+
+    return Math.round(totalTime);
   };
 
   // 실제 비용 계산
@@ -272,6 +297,19 @@ export default function Home() {
       }
 
       setCurrentStep(ENABLE_IMAGE_FEATURE ? 'images' : 'input');
+
+      // 완료 알림
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('가라지와인 블로그 글쓰기', {
+          body: '와인 블로그 글 생성이 완료되었습니다!',
+          icon: '/favicon.ico'
+        });
+      }
+
+      // 브라우저 알림 권한 요청 (처음에만)
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         setError('요청 시간이 초과되었습니다. 다시 시도해주세요.');
@@ -653,7 +691,7 @@ export default function Home() {
               <span>경과 시간: {generationProgress.elapsedTime}초</span>
             </div>
             <span className="text-gray-500">
-              예상 소요 시간: 60~180초
+              예상 소요 시간: 약 {calculateEstimatedTime(model, length)}초
             </span>
           </div>
 
@@ -863,37 +901,41 @@ export default function Home() {
             {showSummary && (
               <div className="mt-4 space-y-4">
                 {/* 요약 */}
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-semibold text-blue-900 mb-2">📝 요약 (400자 이내)</h4>
-                  <p className="text-gray-800 whitespace-pre-wrap">{summary}</p>
+                <div className="p-5 bg-blue-50 border-2 border-blue-200 rounded-lg relative">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-bold text-blue-900 text-lg">📝 요약 (400자)</h4>
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(summary);
+                        alert('요약이 복사되었습니다!');
+                      }}
+                      className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      복사
+                    </button>
+                  </div>
+                  <div className="p-3 bg-white rounded border border-blue-100">
+                    <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{summary}</p>
+                  </div>
                 </div>
 
                 {/* 후킹 메시지 */}
-                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                  <h4 className="font-semibold text-orange-900 mb-2">🔥 후킹 메시지</h4>
-                  <p className="text-gray-800 whitespace-pre-wrap font-medium">{hookMessage}</p>
-                </div>
-
-                {/* 복사 버튼들 */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(summary);
-                      alert('요약이 복사되었습니다!');
-                    }}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    요약 복사
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await navigator.clipboard.writeText(hookMessage);
-                      alert('후킹 메시지가 복사되었습니다!');
-                    }}
-                    className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                  >
-                    후킹 메시지 복사
-                  </button>
+                <div className="p-5 bg-orange-50 border-2 border-orange-200 rounded-lg relative">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-bold text-orange-900 text-lg">🔥 후킹 메시지</h4>
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(hookMessage);
+                        alert('후킹 메시지가 복사되었습니다!');
+                      }}
+                      className="px-4 py-1.5 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors font-medium"
+                    >
+                      복사
+                    </button>
+                  </div>
+                  <div className="p-3 bg-white rounded border border-orange-100">
+                    <p className="text-gray-800 whitespace-pre-wrap font-medium leading-relaxed">{hookMessage}</p>
+                  </div>
                 </div>
               </div>
             )}
